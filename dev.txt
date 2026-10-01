@@ -1,0 +1,43 @@
+
+> salary-management-system@0.1.0 dev
+> prisma generate && electron-vite dev
+
+Prisma schema loaded from prisma\schema.prisma
+
+✔ Generated Prisma Client (v6.19.3) to .\prisma-client in 1.45s
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
+
+vite v7.3.6 building ssr environment for development...
+transforming...
+✓ 15 modules transformed.
+rendering chunks...
+out/main/index.js  29.88 kB
+✓ built in 1.41s
+
+electron main process built successfully
+
+-----
+
+vite v7.3.6 building ssr environment for development...
+transforming...
+✓ 1 modules transformed.
+rendering chunks...
+out/preload/index.js  0.91 kB
+✓ built in 145ms
+
+electron preload scripts built successfully
+
+-----
+
+Port 5173 is in use, trying another one...
+dev server running for the electron renderer process at:
+
+  ➜  Local:   http://localhost:5174/
+  ➜  Network: use --host to expose
+
+starting electron app...
+
+

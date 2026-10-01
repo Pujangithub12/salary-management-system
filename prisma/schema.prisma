@@ -1,0 +1,208 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["windows"]
+  output        = "../prisma-client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// Money is stored as Decimal; all arithmetic must go through decimal.js, never JS floats.
+// Status/type columns are plain strings validated by zod in src/shared/schemas.ts.
+
+model Company {
+  id                 String            @id @default(uuid())
+  name               String
+  registrationNumber String?
+  panVatNumber       String?
+  address            String?
+  phone              String?
+  email              String?
+  logoPath           String?
+  bankName           String?
+  bankAccountNumber  String?
+  bankBranch         String?
+  currentFiscalYear  String?
+  isActive           Boolean           @default(true)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  branches           Branch[]
+  departments        Department[]
+  designations       Designation[]
+  employees          Employee[]
+  salaryComponents   SalaryComponent[]
+}
+
+model Branch {
+  id        String     @id @default(uuid())
+  companyId String
+  company   Company    @relation(fields: [companyId], references: [id])
+  name      String
+  address   String?
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  employees Employee[]
+
+  @@unique([companyId, name])
+}
+
+model Department {
+  id           String        @id @default(uuid())
+  companyId    String
+  company      Company       @relation(fields: [companyId], references: [id])
+  name         String
+  code         String
+  description  String?
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  designations Designation[]
+  employees    Employee[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+model Designation {
+  id           String      @id @default(uuid())
+  companyId    String
+  company      Company     @relation(fields: [companyId], references: [id])
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  title        String
+  code         String
+  grade        String?
+  description  String?
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  employees    Employee[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([departmentId])
+}
+
+model Permission {
+  id    String           @id @default(uuid())
+  code  String           @unique
+  label String
+  roles RolePermission[]
+}
+
+model Role {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  description String?
+  isSystem    Boolean          @default(false)
+  permissions RolePermission[]
+  users       User[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model User {
+  id           String     @id @default(uuid())
+  username     String     @unique
+  fullName     String
+  passwordHash String
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id])
+  isActive     Boolean    @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  auditLogs    AuditLog[]
+}
+
+model Employee {
+  id                String       @id @default(uuid())
+  companyId         String
+  company           Company      @relation(fields: [companyId], references: [id])
+  employeeCode      String
+  fullName          String
+  panNumber         String?
+  ssfNumber         String?
+  citizenshipNumber String?
+  gender            String?
+  dateOfBirth       DateTime?
+  mobile            String?
+  email             String?
+  address           String?
+  emergencyContact  String?
+  photoPath         String?
+  branchId          String?
+  branch            Branch?      @relation(fields: [branchId], references: [id])
+  departmentId      String?
+  department        Department?  @relation(fields: [departmentId], references: [id])
+  designationId     String?
+  designation       Designation? @relation(fields: [designationId], references: [id])
+  employeeType      String       @default("PERMANENT")
+  status            String       @default("ACTIVE")
+  dateJoined        DateTime
+  dateLeft          DateTime?
+  managerId         String?
+  manager           Employee?    @relation("Supervisor", fields: [managerId], references: [id])
+  reports           Employee[]   @relation("Supervisor")
+  grade             String?
+  bankName          String?
+  bankAccountNumber String?
+  bankAccountHolder String?
+  bankBranch        String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@unique([companyId, employeeCode])
+  @@index([companyId])
+  @@index([departmentId])
+  @@index([designationId])
+  @@index([status])
+  @@index([panNumber])
+  @@index([ssfNumber])
+}
+
+model SalaryComponent {
+  id                   String   @id @default(uuid())
+  companyId            String
+  company              Company  @relation(fields: [companyId], references: [id])
+  name                 String
+  code                 String
+  type                 String // EARNING | DEDUCTION
+  calculationMethod    String   @default("FIXED") // FIXED | PERCENTAGE | FORMULA
+  formula              String?
+  isTaxable            Boolean  @default(true)
+  ssfApplicable        Boolean  @default(false)
+  employeeContribution Boolean  @default(false)
+  employerContribution Boolean  @default(false)
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  module    String
+  recordId  String?
+  oldValue  String?
+  newValue  String?
+  createdAt DateTime @default(now())
+
+  @@index([module, recordId])
+  @@index([createdAt])
+}

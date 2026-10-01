@@ -1,0 +1,30 @@
+appId: com.company.salarymanagement
+productName: Salary Management System
+directories:
+  output: dist
+files:
+  - out/**/*
+  - package.json
+  - prisma-client/**/*
+  - '!prisma-client/*.node'
+  - '!**/*.map'
+extraResources:
+  - from: prisma/migrations
+    to: migrations
+    filter:
+      - '**/*.sql'
+  - from: prisma-client
+    to: prisma-engine
+    filter:
+      - '*.dll.node'
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  artifactName: Salary-Management-System-Setup-${version}.${ext}
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Salary Management System
