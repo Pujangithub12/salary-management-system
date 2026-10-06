@@ -75,6 +75,12 @@ export default function CompanyPage() {
                 <Field label="Fiscal year" error={errors.currentFiscalYear?.message}>
                   <Input placeholder="e.g. 2082/83" {...register('currentFiscalYear')} />
                 </Field>
+                <Field label="Tagline" error={errors.tagline?.message}>
+                  <Input placeholder="e.g. Build · Innovate · Grow" {...register('tagline')} />
+                </Field>
+                <Field label="Website" error={errors.website?.message}>
+                  <Input {...register('website')} />
+                </Field>
                 <Field label="Phone" error={errors.phone?.message}>
                   <Input {...register('phone')} />
                 </Field>
@@ -86,6 +92,19 @@ export default function CompanyPage() {
                 <Textarea {...register('address')} />
               </Field>
               <CheckField label="Active" {...register('isActive')} />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Authorised signatory (employment contracts)</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-4">
+              <Field label="Name">
+                <Input placeholder="e.g. Ramesh Shrestha" {...register('signatoryName')} />
+              </Field>
+              <Field label="Title">
+                <Input placeholder="e.g. Managing Director" {...register('signatoryTitle')} />
+              </Field>
             </CardContent>
           </Card>
           <Card>

@@ -11,7 +11,8 @@ const CHANNELS = new Set([
   'salary-components:list', 'salary-components:create', 'salary-components:update',
   'users:list', 'users:create', 'users:update', 'roles:list',
   'files:pickImage',
-  'app:shell', 'dashboard:summary'
+  'app:shell', 'dashboard:summary',
+  'contracts:defaults', 'contracts:preview', 'contracts:generate'
 ])
 
 contextBridge.exposeInMainWorld('api', {

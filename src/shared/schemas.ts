@@ -45,6 +45,10 @@ export const companySchema = z.object({
   bankAccountNumber: optText,
   bankBranch: optText,
   currentFiscalYear: optText,
+  tagline: optText,
+  website: optText,
+  signatoryName: optText,
+  signatoryTitle: optText,
   isActive: z.boolean().default(true)
 })
 
@@ -109,6 +113,25 @@ export const salaryComponentSchema = z
     message: 'Formula / percentage is required for this calculation method'
   })
 
+const dateText = z.string().min(1, 'Date is required').refine((v) => !Number.isNaN(Date.parse(v)), 'Invalid date')
+
+export const contractSchema = z.object({
+  contractDate: dateText,
+  startDate: dateText,
+  monthlySalary: z.coerce.number().positive('Enter the monthly salary').max(100_000_000),
+  payDay: z.coerce.number().int().min(1).max(31).default(5),
+  bonusPercent: z.coerce.number().min(0).max(100).default(0),
+  benefits: optText,
+  probationMonths: z.coerce.number().int().min(0).max(24).default(3),
+  noticeDays: z.coerce.number().int().min(1).max(180).default(30),
+  nonSolicitMonths: z.coerce.number().int().min(0).max(60).default(12),
+  annualLeaveDays: z.coerce.number().int().min(0).max(60).default(18),
+  sickLeaveDays: z.coerce.number().int().min(0).max(60).default(12),
+  urgentLeaveDays: z.coerce.number().int().min(0).max(60).default(12),
+  signatoryName: reqText('Signatory name'),
+  signatoryTitle: reqText('Signatory title')
+})
+
 export const userSchema = z.object({
   username: reqText('Username').min(3, 'At least 3 characters'),
   fullName: reqText('Full name'),
@@ -136,6 +159,7 @@ export type DepartmentInput = z.input<typeof departmentSchema>
 export type DesignationInput = z.input<typeof designationSchema>
 export type EmployeeInput = z.input<typeof employeeSchema>
 export type SalaryComponentInput = z.input<typeof salaryComponentSchema>
+export type ContractInput = z.input<typeof contractSchema>
 export type UserInput = z.input<typeof userSchema>
 export type ListQuery = z.input<typeof listQuerySchema>
 

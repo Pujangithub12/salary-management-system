@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Eye, Pencil, Plus, UserX } from 'lucide-react'
+import { Eye, FileText, Pencil, Plus, UserX } from 'lucide-react'
 import { EMPLOYEE_STATUSES, EMPLOYEE_TYPES } from '@shared/schemas'
 import { api } from '@/lib/api'
 import { formatDate, humanize } from '@/lib/utils'
@@ -15,6 +15,7 @@ import { PageHeader, Pagination, SearchBox, StateRow, Table, Td, Th } from '@/co
 import { fileUrl } from '@/components/image-picker'
 import EmployeeForm from './EmployeeForm'
 import EmployeeView from './EmployeeView'
+import ContractDialog from './ContractDialog'
 import type { Employee } from './types'
 
 const statusTone = { ACTIVE: 'green', INACTIVE: 'gray', RESIGNED: 'amber', TERMINATED: 'red' } as const
@@ -33,6 +34,7 @@ export default function EmployeesPage() {
   })
   const [editing, setEditing] = useState<Employee | 'new' | null>(null)
   const [viewing, setViewing] = useState<string | null>(null)
+  const [contractFor, setContractFor] = useState<Employee | null>(null)
   const { data, isLoading, error } = list.query
   const setFilter = (k: keyof typeof filters) => (e: React.ChangeEvent<HTMLSelectElement>) =>
     setFilters((f) => ({ ...f, [k]: e.target.value }))
@@ -141,6 +143,11 @@ export default function EmployeesPage() {
                       <Pencil className="h-4 w-4" />
                     </Button>
                   )}
+                  {can('contract.generate') && (
+                    <Button variant="ghost" size="icon" aria-label={`Generate contract for ${e.fullName}`} title="Generate employment contract" onClick={() => setContractFor(e)}>
+                      <FileText className="h-4 w-4" />
+                    </Button>
+                  )}
                   {can('employee.delete') && e.status === 'ACTIVE' && (
                     <Button
                       variant="ghost"
@@ -162,6 +169,9 @@ export default function EmployeesPage() {
       </Card>
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         {editing && <EmployeeForm item={editing === 'new' ? null : editing} onDone={() => setEditing(null)} />}
+      </Dialog>
+      <Dialog open={!!contractFor} onOpenChange={(o) => !o && setContractFor(null)}>
+        {contractFor && <ContractDialog employee={contractFor} onDone={() => setContractFor(null)} />}
       </Dialog>
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
         {viewing && <EmployeeView id={viewing} />}

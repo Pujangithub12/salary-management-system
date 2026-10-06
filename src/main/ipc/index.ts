@@ -6,6 +6,7 @@ import { registerSalary } from './salary'
 import { registerUsers } from './users'
 import { registerFiles } from './files'
 import { registerDashboard } from './dashboard'
+import { registerContracts } from './contracts'
 
 export function registerIpc(): void {
   registerAuth()
@@ -16,4 +17,5 @@ export function registerIpc(): void {
   registerUsers()
   registerFiles()
   registerDashboard()
+  registerContracts()
 }
