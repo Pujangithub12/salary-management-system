@@ -13,17 +13,20 @@ import { api } from '@/lib/api'
 import { humanize } from '@/lib/utils'
 import { useAuth } from '@/auth/AuthContext'
 import { useToast } from '@/components/toast'
-import { useList } from '@/hooks/useList'
+import { useList, useOrgLookups } from '@/hooks/useList'
 import { applyServerErrors } from '@/hooks/useFormSubmit'
 import { Button } from '@/components/ui/button'
 import { Badge, Card } from '@/components/ui/card'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Input, Select } from '@/components/ui/input'
 import { CheckField, Field } from '@/components/field'
+import { CompanyField, CompanySelect } from '@/components/company-field'
 import { PageHeader, Pagination, SearchBox, StateRow, Table, Td, Th } from '@/components/data-table'
 
 interface Component {
   id: string
+  companyId: string
+  company: { id: string; name: string }
   name: string
   code: string
   type: 'EARNING' | 'DEDUCTION'
@@ -41,7 +44,10 @@ const yes = (v: boolean) => (v ? 'Yes' : '—')
 export default function SalaryComponentsPage() {
   const { can } = useAuth()
   const [type, setType] = useState('')
-  const list = useList<Component>('salary-components', 'salary-components:list', { type: type || undefined })
+  const [companyId, setCompanyId] = useState('')
+  const list = useList<Component>('salary-components', 'salary-components:list', { type: type || undefined, companyId: companyId || undefined })
+  const lookups = useOrgLookups()
+  const multiCompany = (lookups.data?.companies.length ?? 0) > 1
   const [editing, setEditing] = useState<Component | 'new' | null>(null)
   const { data, isLoading, error } = list.query
 
@@ -61,6 +67,7 @@ export default function SalaryComponentsPage() {
       <Card>
         <div className="flex gap-3 p-3">
           <SearchBox value={list.search} onChange={list.setSearch} placeholder="Search name or code" />
+          {multiCompany && <CompanySelect value={companyId} onChange={setCompanyId} all />}
           <Select className="w-44" value={type} onChange={(e) => setType(e.target.value)} aria-label="Type filter">
             <option value="">All types</option>
             {COMPONENT_TYPES.map((t) => (
@@ -75,6 +82,7 @@ export default function SalaryComponentsPage() {
             <tr>
               <Th>Code</Th>
               <Th>Name</Th>
+              {multiCompany && <Th>Company</Th>}
               <Th>Type</Th>
               <Th>Calculation</Th>
               <Th>Taxable</Th>
@@ -86,11 +94,12 @@ export default function SalaryComponentsPage() {
             </tr>
           </thead>
           <tbody>
-            <StateRow cols={10} loading={isLoading} error={error?.message} empty={!isLoading && !data?.items.length} />
+            <StateRow cols={11} loading={isLoading} error={error?.message} empty={!isLoading && !data?.items.length} />
             {data?.items.map((c) => (
               <tr key={c.id}>
                 <Td className="font-mono">{c.code}</Td>
                 <Td className="font-medium">{c.name}</Td>
+                {multiCompany && <Td>{c.company.name}</Td>}
                 <Td>
                   <Badge tone={c.type === 'EARNING' ? 'blue' : 'amber'}>{humanize(c.type)}</Badge>
                 </Td>
@@ -133,12 +142,15 @@ function ComponentForm({ item, onDone }: { item: Component | null; onDone: () =>
     handleSubmit,
     setError,
     watch,
+    setValue,
+    getValues,
     formState: { errors }
   } = useForm<SalaryComponentInput>({
     resolver: zodResolver(salaryComponentSchema),
     defaultValues: item
       ? { ...item, formula: item.formula ?? '' }
       : {
+          companyId: '',
           name: '',
           code: '',
           type: 'EARNING',
@@ -170,6 +182,7 @@ function ComponentForm({ item, onDone }: { item: Component | null; onDone: () =>
   return (
     <DialogContent title={item ? 'Edit salary component' : 'Add salary component'}>
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        <CompanyField register={register} setValue={setValue} getValues={getValues} locked={!!item} error={errors.companyId?.message} />
         <div className="grid grid-cols-2 gap-4">
           <Field label="Name" required error={errors.name?.message}>
             <Input {...register('name')} />

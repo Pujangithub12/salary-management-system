@@ -1,5 +1,6 @@
 export const PERMISSIONS = {
   'company.view': 'View company settings',
+  'company.create': 'Create companies',
   'company.update': 'Update company settings',
   'department.view': 'View departments',
   'department.create': 'Create departments',
@@ -11,6 +12,8 @@ export const PERMISSIONS = {
   'employee.create': 'Create employees',
   'employee.update': 'Update employees',
   'employee.delete': 'Deactivate employees',
+  'employee.terminate': 'Terminate employees',
+  'contract.generate': 'Generate employment contracts',
   'salary.view': 'View salary components',
   'salary.create': 'Create salary components',
   'salary.update': 'Update salary components',
@@ -37,7 +40,7 @@ export const SYSTEM_ROLES: { name: string; description: string; permissions: Per
   {
     name: 'HR',
     description: 'Employees, departments and designations',
-    permissions: [...prefixed('employee', 'department', 'designation'), 'company.view']
+    permissions: [...prefixed('employee', 'department', 'designation', 'contract'), 'company.view']
   },
   {
     name: 'Accountant',

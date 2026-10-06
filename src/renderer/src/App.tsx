@@ -9,6 +9,7 @@ import DesignationsPage from '@/pages/organization/DesignationsPage'
 import SalaryComponentsPage from '@/pages/salary/SalaryComponentsPage'
 import PayrollPage from '@/pages/payroll/PayrollPage'
 import CompanyPage from '@/pages/settings/CompanyPage'
+import CompaniesPage from '@/pages/settings/CompaniesPage'
 import UsersPage from '@/pages/settings/UsersPage'
 import SettingsPage from '@/pages/settings/SettingsPage'
 
@@ -27,7 +28,8 @@ export default function App() {
         <Route path="designations" element={<DesignationsPage />} />
         <Route path="salary-components" element={<SalaryComponentsPage />} />
         <Route path="settings" element={<SettingsPage />} />
-        <Route path="company" element={<CompanyPage />} />
+        <Route path="companies" element={<CompaniesPage />} />
+        <Route path="companies/:id" element={<CompanyPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

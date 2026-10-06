@@ -23,6 +23,7 @@ export default function EmployeeView({ id }: { id: string }) {
         <div className="space-y-5">
           {e.photoPath && <img src={fileUrl(e.photoPath)} alt={e.fullName} className="h-24 w-24 rounded-full object-cover" />}
           <dl className="grid grid-cols-3 gap-4">
+            <Row label="Company" value={e.company.name} />
             <Row label="PAN" value={e.panNumber} />
             <Row label="SSF number" value={e.ssfNumber} />
             <Row label="Citizenship no." value={e.citizenshipNumber} />

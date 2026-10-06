@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { PageHeader } from '@/components/data-table'
 
 const ITEMS = [
-  { to: '/company', title: 'Company', text: 'Name, logo, PAN/VAT, bank and fiscal year', icon: Building2, perm: 'company.view' },
+  { to: '/companies', title: 'Companies', text: 'Add companies; logo, PAN/VAT, bank and signatory', icon: Building2, perm: 'company.view' },
   { to: '/departments', title: 'Departments', text: 'Organisation units', icon: Layers, perm: 'department.view' },
   { to: '/designations', title: 'Designations', text: 'Job posts and grades', icon: Briefcase, perm: 'designation.view' },
   { to: '/salary-components', title: 'Salary Components', text: 'Earnings and deductions', icon: Wallet, perm: 'salary.view' },

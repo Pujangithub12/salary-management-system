@@ -34,8 +34,9 @@ export function useList<T>(key: string, channel: string, filters: Record<string,
 }
 
 export interface OrgLookups {
-  departments: { id: string; name: string; code: string; isActive: boolean }[]
-  designations: { id: string; title: string; code: string; departmentId: string | null; isActive: boolean }[]
+  companies: { id: string; name: string; isActive: boolean }[]
+  departments: { id: string; companyId: string; name: string; code: string; isActive: boolean }[]
+  designations: { id: string; companyId: string; title: string; code: string; departmentId: string | null; isActive: boolean }[]
 }
 
 export function useOrgLookups() {

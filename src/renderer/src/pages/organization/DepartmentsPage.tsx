@@ -7,17 +7,20 @@ import { departmentSchema, type DepartmentInput } from '@shared/schemas'
 import { api } from '@/lib/api'
 import { useAuth } from '@/auth/AuthContext'
 import { useToast } from '@/components/toast'
-import { useList } from '@/hooks/useList'
+import { useList, useOrgLookups } from '@/hooks/useList'
 import { applyServerErrors } from '@/hooks/useFormSubmit'
 import { Button } from '@/components/ui/button'
 import { Badge, Card } from '@/components/ui/card'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { Input, Textarea } from '@/components/ui/input'
+import { Input, Select, Textarea } from '@/components/ui/input'
 import { CheckField, Field } from '@/components/field'
+import { CompanyField, CompanySelect } from '@/components/company-field'
 import { PageHeader, Pagination, SearchBox, StateRow, Table, Td, Th } from '@/components/data-table'
 
 interface Department {
   id: string
+  companyId: string
+  company: { id: string; name: string }
   name: string
   code: string
   description: string | null
@@ -27,7 +30,10 @@ interface Department {
 
 export default function DepartmentsPage() {
   const { can } = useAuth()
-  const list = useList<Department>('departments', 'departments:list')
+  const [companyId, setCompanyId] = useState('')
+  const list = useList<Department>('departments', 'departments:list', { companyId: companyId || undefined })
+  const lookups = useOrgLookups()
+  const multiCompany = (lookups.data?.companies.length ?? 0) > 1
   const [editing, setEditing] = useState<Department | 'new' | null>(null)
   const { data, isLoading, error } = list.query
 
@@ -44,14 +50,16 @@ export default function DepartmentsPage() {
         }
       />
       <Card>
-        <div className="p-3">
+        <div className="flex gap-3 p-3">
           <SearchBox value={list.search} onChange={list.setSearch} placeholder="Search name or code" />
+          {multiCompany && <CompanySelect value={companyId} onChange={setCompanyId} all />}
         </div>
         <Table>
           <thead>
             <tr>
               <Th>Code</Th>
               <Th>Name</Th>
+              {multiCompany && <Th>Company</Th>}
               <Th>Description</Th>
               <Th>Employees</Th>
               <Th>Status</Th>
@@ -59,11 +67,12 @@ export default function DepartmentsPage() {
             </tr>
           </thead>
           <tbody>
-            <StateRow cols={6} loading={isLoading} error={error?.message} empty={!isLoading && !data?.items.length} />
+            <StateRow cols={7} loading={isLoading} error={error?.message} empty={!isLoading && !data?.items.length} />
             {data?.items.map((d) => (
               <tr key={d.id}>
                 <Td className="font-mono">{d.code}</Td>
                 <Td className="font-medium">{d.name}</Td>
+                {multiCompany && <Td>{d.company.name}</Td>}
                 <Td>{d.description}</Td>
                 <Td>{d._count.employees}</Td>
                 <Td>
@@ -96,12 +105,14 @@ function DepartmentForm({ item, onDone }: { item: Department | null; onDone: () 
     register,
     handleSubmit,
     setError,
+    setValue,
+    getValues,
     formState: { errors }
   } = useForm<DepartmentInput>({
     resolver: zodResolver(departmentSchema),
     defaultValues: item
-      ? { name: item.name, code: item.code, description: item.description ?? '', isActive: item.isActive }
-      : { name: '', code: '', description: '', isActive: true }
+      ? { companyId: item.companyId, name: item.name, code: item.code, description: item.description ?? '', isActive: item.isActive }
+      : { companyId: '', name: '', code: '', description: '', isActive: true }
   })
 
   const save = useMutation({
@@ -122,6 +133,7 @@ function DepartmentForm({ item, onDone }: { item: Department | null; onDone: () 
   return (
     <DialogContent title={item ? 'Edit department' : 'Add department'}>
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        <CompanyField register={register} setValue={setValue} getValues={getValues} locked={!!item} error={errors.companyId?.message} />
         <div className="grid grid-cols-2 gap-4">
           <Field label="Name" required error={errors.name?.message}>
             <Input {...register('name')} />
