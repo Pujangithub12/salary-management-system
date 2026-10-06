@@ -1,5 +1,7 @@
 export interface Employee {
   id: string
+  companyId: string
+  company: { id: string; name: string }
   employeeCode: string
   fullName: string
   panNumber: string | null

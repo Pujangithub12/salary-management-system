@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -22,7 +23,7 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 )
 
 const empty: EmployeeInput = {
-  employeeCode: '', fullName: '', panNumber: '', ssfNumber: '', citizenshipNumber: '', gender: null,
+  companyId: '', employeeCode: '', fullName: '', panNumber: '', ssfNumber: '', citizenshipNumber: '', gender: null,
   dateOfBirth: '', mobile: '', email: '', address: '', emergencyContact: '', photoPath: '',
   departmentId: '', designationId: '', employeeType: 'PERMANENT', status: 'ACTIVE', dateJoined: '',
   dateLeft: '', managerId: '', grade: '', bankName: '', bankAccountNumber: '', bankAccountHolder: '', bankBranch: ''
@@ -34,13 +35,16 @@ export default function EmployeeForm({ item, onDone }: { item: Employee | null; 
   const lookups = useOrgLookups()
   const managers = useQuery({
     queryKey: ['employee-options'],
-    queryFn: () => api<{ id: string; fullName: string; employeeCode: string }[]>('employees:options')
+    queryFn: () => api<{ id: string; companyId: string; fullName: string; employeeCode: string }[]>('employees:options')
   })
   const {
     register,
     control,
     handleSubmit,
     setError,
+    watch,
+    setValue,
+    getValues,
     formState: { errors }
   } = useForm<EmployeeInput>({
     resolver: zodResolver(employeeSchema),
@@ -54,6 +58,21 @@ export default function EmployeeForm({ item, onDone }: { item: Employee | null; 
         }
       : empty
   })
+
+  const companyId = watch('companyId')
+  const companies = lookups.data?.companies.filter((c) => c.isActive || c.id === item?.companyId) ?? []
+
+  // With a single company there is nothing to choose, so pre-select it for new employees.
+  useEffect(() => {
+    if (!item && companies.length === 1 && !getValues('companyId')) setValue('companyId', companies[0].id)
+  }, [item, companies, getValues, setValue])
+
+  // Departments, designations and supervisors belong to a company, so changing it clears them.
+  const onCompanyChange = () => {
+    setValue('departmentId', '')
+    setValue('designationId', '')
+    setValue('managerId', '')
+  }
 
   const save = useMutation({
     mutationFn: (v: EmployeeInput) => (item ? api('employees:update', { id: item.id, data: v }) : api('employees:create', v)),
@@ -125,11 +144,21 @@ export default function EmployeeForm({ item, onDone }: { item: Employee | null; 
         </Section>
 
         <Section title="Employment">
+          <Field label="Company" required error={e.companyId?.message}>
+            <Select {...register('companyId', { onChange: onCompanyChange })}>
+              <option value="">Select company…</option>
+              {companies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
           <Field label="Department" error={e.departmentId?.message}>
             <Select {...register('departmentId')}>
               <option value="">—</option>
               {lookups.data?.departments
-                .filter((d) => d.isActive || d.id === item?.departmentId)
+                .filter((d) => d.companyId === companyId && (d.isActive || d.id === item?.departmentId))
                 .map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.name}
@@ -141,7 +170,7 @@ export default function EmployeeForm({ item, onDone }: { item: Employee | null; 
             <Select {...register('designationId')}>
               <option value="">—</option>
               {lookups.data?.designations
-                .filter((d) => d.isActive || d.id === item?.designationId)
+                .filter((d) => d.companyId === companyId && (d.isActive || d.id === item?.designationId))
                 .map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.title}
@@ -174,7 +203,7 @@ export default function EmployeeForm({ item, onDone }: { item: Employee | null; 
             <Select {...register('managerId')}>
               <option value="">—</option>
               {managers.data
-                ?.filter((m) => m.id !== item?.id)
+                ?.filter((m) => m.id !== item?.id && m.companyId === companyId)
                 .map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.fullName} ({m.employeeCode})

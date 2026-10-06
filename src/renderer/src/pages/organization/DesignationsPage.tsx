@@ -14,10 +14,13 @@ import { Badge, Card } from '@/components/ui/card'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Input, Select, Textarea } from '@/components/ui/input'
 import { CheckField, Field } from '@/components/field'
+import { CompanyField, CompanySelect } from '@/components/company-field'
 import { PageHeader, Pagination, SearchBox, StateRow, Table, Td, Th } from '@/components/data-table'
 
 interface Designation {
   id: string
+  companyId: string
+  company: { id: string; name: string }
   title: string
   code: string
   grade: string | null
@@ -31,8 +34,10 @@ interface Designation {
 export default function DesignationsPage() {
   const { can } = useAuth()
   const [departmentId, setDepartmentId] = useState('')
-  const list = useList<Designation>('designations', 'designations:list', { departmentId: departmentId || undefined })
+  const [companyId, setCompanyId] = useState('')
+  const list = useList<Designation>('designations', 'designations:list', { departmentId: departmentId || undefined, companyId: companyId || undefined })
   const lookups = useOrgLookups()
+  const multiCompany = (lookups.data?.companies.length ?? 0) > 1
   const [editing, setEditing] = useState<Designation | 'new' | null>(null)
   const { data, isLoading, error } = list.query
 
@@ -52,6 +57,7 @@ export default function DesignationsPage() {
       <Card>
         <div className="flex gap-3 p-3">
           <SearchBox value={list.search} onChange={list.setSearch} placeholder="Search title or code" />
+          {multiCompany && <CompanySelect value={companyId} onChange={setCompanyId} all />}
           <Select className="w-52" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} aria-label="Department filter">
             <option value="">All departments</option>
             {lookups.data?.departments.map((d) => (
@@ -66,6 +72,7 @@ export default function DesignationsPage() {
             <tr>
               <Th>Code</Th>
               <Th>Title</Th>
+              {multiCompany && <Th>Company</Th>}
               <Th>Department</Th>
               <Th>Grade</Th>
               <Th>Employees</Th>
@@ -74,11 +81,12 @@ export default function DesignationsPage() {
             </tr>
           </thead>
           <tbody>
-            <StateRow cols={7} loading={isLoading} error={error?.message} empty={!isLoading && !data?.items.length} />
+            <StateRow cols={8} loading={isLoading} error={error?.message} empty={!isLoading && !data?.items.length} />
             {data?.items.map((d) => (
               <tr key={d.id}>
                 <Td className="font-mono">{d.code}</Td>
                 <Td className="font-medium">{d.title}</Td>
+                {multiCompany && <Td>{d.company.name}</Td>}
                 <Td>{d.department?.name ?? '—'}</Td>
                 <Td>{d.grade ?? '—'}</Td>
                 <Td>{d._count.employees}</Td>
@@ -113,11 +121,15 @@ function DesignationForm({ item, onDone }: { item: Designation | null; onDone: (
     register,
     handleSubmit,
     setError,
+    setValue,
+    getValues,
+    watch,
     formState: { errors }
   } = useForm<DesignationInput>({
     resolver: zodResolver(designationSchema),
     defaultValues: item
       ? {
+          companyId: item.companyId,
           title: item.title,
           code: item.code,
           departmentId: item.departmentId ?? '',
@@ -125,8 +137,10 @@ function DesignationForm({ item, onDone }: { item: Designation | null; onDone: (
           description: item.description ?? '',
           isActive: item.isActive
         }
-      : { title: '', code: '', departmentId: '', grade: '', description: '', isActive: true }
+      : { companyId: '', title: '', code: '', departmentId: '', grade: '', description: '', isActive: true }
   })
+
+  const formCompany = watch('companyId')
 
   const save = useMutation({
     mutationFn: (v: DesignationInput) =>
@@ -146,6 +160,7 @@ function DesignationForm({ item, onDone }: { item: Designation | null; onDone: (
   return (
     <DialogContent title={item ? 'Edit designation' : 'Add designation'}>
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        <CompanyField register={register} setValue={setValue} getValues={getValues} locked={!!item} error={errors.companyId?.message} onChange={() => setValue('departmentId', '')} />
         <div className="grid grid-cols-2 gap-4">
           <Field label="Job title" required error={errors.title?.message}>
             <Input {...register('title')} />
@@ -156,11 +171,13 @@ function DesignationForm({ item, onDone }: { item: Designation | null; onDone: (
           <Field label="Department" error={errors.departmentId?.message}>
             <Select {...register('departmentId')}>
               <option value="">— None —</option>
-              {lookups.data?.departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
+              {lookups.data?.departments
+                .filter((d) => d.companyId === formCompany)
+                .map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
             </Select>
           </Field>
           <Field label="Grade" error={errors.grade?.message}>

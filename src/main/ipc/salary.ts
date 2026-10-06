@@ -1,12 +1,12 @@
 import { prisma } from '../db'
 import { listQuerySchema, salaryComponentSchema } from '@shared/schemas'
-import { audit, companyId, handle } from './handler'
+import { audit, existingCompany, handle } from './handler'
 
 export function registerSalary(): void {
   handle<unknown, unknown>('salary-components:list', { perm: 'salary.view' }, async (input) => {
     const q = listQuerySchema.parse(input ?? {})
     const where = {
-      companyId: await companyId(),
+      ...(q.companyId ? { companyId: q.companyId } : {}),
       ...(q.type ? { type: q.type } : {}),
       ...(q.status ? { isActive: q.status === 'ACTIVE' } : {}),
       ...(q.search ? { OR: [{ name: { contains: q.search } }, { code: { contains: q.search } }] } : {})
@@ -14,6 +14,7 @@ export function registerSalary(): void {
     const [items, total] = await Promise.all([
       prisma.salaryComponent.findMany({
         where,
+        include: { company: { select: { id: true, name: true } } },
         orderBy: [{ type: 'asc' }, { name: 'asc' }],
         skip: (q.page - 1) * q.pageSize,
         take: q.pageSize
@@ -25,13 +26,13 @@ export function registerSalary(): void {
 
   handle<unknown, unknown>('salary-components:create', { perm: 'salary.create' }, async (input, user) => {
     const data = salaryComponentSchema.parse(input)
-    const rec = await prisma.salaryComponent.create({ data: { ...data, companyId: await companyId() } })
+    const rec = await prisma.salaryComponent.create({ data: { ...data, companyId: await existingCompany(data.companyId) } })
     await audit(user, 'CREATE', 'salary-component', rec.id, undefined, rec)
     return rec
   })
 
   handle<{ id: string; data: unknown }, unknown>('salary-components:update', { perm: 'salary.update' }, async (input, user) => {
-    const data = salaryComponentSchema.parse(input.data)
+    const { companyId: _ignored, ...data } = salaryComponentSchema.parse(input.data)
     const before = await prisma.salaryComponent.findUniqueOrThrow({ where: { id: input.id } })
     const rec = await prisma.salaryComponent.update({ where: { id: input.id }, data })
     await audit(user, 'UPDATE', 'salary-component', rec.id, before, rec)

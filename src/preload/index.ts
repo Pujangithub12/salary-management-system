@@ -3,7 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 // Only these channels may be invoked from the renderer.
 const CHANNELS = new Set([
   'auth:login', 'auth:me', 'auth:logout',
-  'company:get', 'company:update',
+  'companies:list', 'company:get', 'company:create', 'company:update',
   'departments:list', 'departments:create', 'departments:update',
   'designations:list', 'designations:create', 'designations:update',
   'lookups:organization',
@@ -12,7 +12,8 @@ const CHANNELS = new Set([
   'users:list', 'users:create', 'users:update', 'roles:list',
   'files:pickImage',
   'app:shell', 'dashboard:summary',
-  'contracts:defaults', 'contracts:preview', 'contracts:generate'
+  'contracts:defaults', 'contracts:preview', 'contracts:generate',
+  'employees:terminate', 'separation:defaults', 'separation:preview', 'separation:generate'
 ])
 
 contextBridge.exposeInMainWorld('api', {

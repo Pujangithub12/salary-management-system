@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Eye, FileText, Pencil, Plus, UserX } from 'lucide-react'
+import { Eye, FileText, Pencil, Plus, ScrollText, UserMinus, UserX } from 'lucide-react'
 import { EMPLOYEE_STATUSES, EMPLOYEE_TYPES } from '@shared/schemas'
 import { api } from '@/lib/api'
 import { formatDate, humanize } from '@/lib/utils'
@@ -16,6 +16,8 @@ import { fileUrl } from '@/components/image-picker'
 import EmployeeForm from './EmployeeForm'
 import EmployeeView from './EmployeeView'
 import ContractDialog from './ContractDialog'
+import TerminateDialog from './TerminateDialog'
+import SeparationDialog from './SeparationDialog'
 import type { Employee } from './types'
 
 const statusTone = { ACTIVE: 'green', INACTIVE: 'gray', RESIGNED: 'amber', TERMINATED: 'red' } as const
@@ -25,8 +27,9 @@ export default function EmployeesPage() {
   const qc = useQueryClient()
   const toast = useToast()
   const lookups = useOrgLookups()
-  const [filters, setFilters] = useState({ status: '', employeeType: '', departmentId: '', designationId: '' })
+  const [filters, setFilters] = useState({ companyId: '', status: '', employeeType: '', departmentId: '', designationId: '' })
   const list = useList<Employee>('employees', 'employees:list', {
+    companyId: filters.companyId || undefined,
     status: filters.status || undefined,
     employeeType: filters.employeeType || undefined,
     departmentId: filters.departmentId || undefined,
@@ -35,9 +38,12 @@ export default function EmployeesPage() {
   const [editing, setEditing] = useState<Employee | 'new' | null>(null)
   const [viewing, setViewing] = useState<string | null>(null)
   const [contractFor, setContractFor] = useState<Employee | null>(null)
+  const [terminateFor, setTerminateFor] = useState<Employee | null>(null)
+  const [separationFor, setSeparationFor] = useState<Employee | null>(null)
   const { data, isLoading, error } = list.query
   const setFilter = (k: keyof typeof filters) => (e: React.ChangeEvent<HTMLSelectElement>) =>
     setFilters((f) => ({ ...f, [k]: e.target.value }))
+  const multiCompany = (lookups.data?.companies.length ?? 0) > 1
   const sort = { sortBy: list.sortBy, sortDir: list.sortDir, onSort: list.toggleSort }
 
   const deactivate = useMutation({
@@ -64,6 +70,16 @@ export default function EmployeesPage() {
       <Card>
         <div className="flex flex-wrap gap-3 p-3">
           <SearchBox value={list.search} onChange={list.setSearch} placeholder="Name, ID, PAN, SSF, mobile" />
+          {(lookups.data?.companies.length ?? 0) > 0 && (
+            <Select className="w-48" value={filters.companyId} onChange={setFilter('companyId')} aria-label="Company filter">
+              <option value="">All companies</option>
+              {lookups.data?.companies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          )}
           <Select className="w-40" value={filters.status} onChange={setFilter('status')} aria-label="Status filter">
             <option value="">All statuses</option>
             {EMPLOYEE_STATUSES.map((s) => (
@@ -102,6 +118,7 @@ export default function EmployeesPage() {
             <tr>
               <Th sortKey="employeeCode" {...sort}>ID</Th>
               <Th sortKey="fullName" {...sort}>Name</Th>
+              {multiCompany && <Th>Company</Th>}
               <Th>Department</Th>
               <Th>Designation</Th>
               <Th sortKey="employeeType" {...sort}>Type</Th>
@@ -111,7 +128,7 @@ export default function EmployeesPage() {
             </tr>
           </thead>
           <tbody>
-            <StateRow cols={8} loading={isLoading} error={error?.message} empty={!isLoading && !data?.items.length} />
+            <StateRow cols={9} loading={isLoading} error={error?.message} empty={!isLoading && !data?.items.length} />
             {data?.items.map((e) => (
               <tr key={e.id} className="hover:bg-muted/50">
                 <Td className="font-mono">{e.employeeCode}</Td>
@@ -127,6 +144,7 @@ export default function EmployeesPage() {
                     <span className="font-medium">{e.fullName}</span>
                   </div>
                 </Td>
+                {multiCompany && <Td>{e.company.name}</Td>}
                 <Td>{e.department?.name ?? '—'}</Td>
                 <Td>{e.designation?.title ?? '—'}</Td>
                 <Td>{humanize(e.employeeType)}</Td>
@@ -146,6 +164,16 @@ export default function EmployeesPage() {
                   {can('contract.generate') && (
                     <Button variant="ghost" size="icon" aria-label={`Generate contract for ${e.fullName}`} title="Generate employment contract" onClick={() => setContractFor(e)}>
                       <FileText className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {can('employee.terminate') && e.status !== 'TERMINATED' && e.status !== 'RESIGNED' && (
+                    <Button variant="ghost" size="icon" aria-label={`Terminate ${e.fullName}`} title="Terminate employment" onClick={() => setTerminateFor(e)}>
+                      <UserMinus className="h-4 w-4 text-destructive" />
+                    </Button>
+                  )}
+                  {can('contract.generate') && (e.status === 'TERMINATED' || e.status === 'RESIGNED') && (
+                    <Button variant="ghost" size="icon" aria-label={`Separation agreement for ${e.fullName}`} title="Separation agreement (PDF)" onClick={() => setSeparationFor(e)}>
+                      <ScrollText className="h-4 w-4" />
                     </Button>
                   )}
                   {can('employee.delete') && e.status === 'ACTIVE' && (
@@ -172,6 +200,12 @@ export default function EmployeesPage() {
       </Dialog>
       <Dialog open={!!contractFor} onOpenChange={(o) => !o && setContractFor(null)}>
         {contractFor && <ContractDialog employee={contractFor} onDone={() => setContractFor(null)} />}
+      </Dialog>
+      <Dialog open={!!terminateFor} onOpenChange={(o) => !o && setTerminateFor(null)}>
+        {terminateFor && <TerminateDialog employee={terminateFor} onDone={() => setTerminateFor(null)} />}
+      </Dialog>
+      <Dialog open={!!separationFor} onOpenChange={(o) => !o && setSeparationFor(null)}>
+        {separationFor && <SeparationDialog employee={separationFor} onDone={() => setSeparationFor(null)} />}
       </Dialog>
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
         {viewing && <EmployeeView id={viewing} />}

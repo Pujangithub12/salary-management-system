@@ -78,3 +78,25 @@ export async function companyId(): Promise<string> {
   if (!c) throw new AppError('No active company configured')
   return c.id
 }
+
+/** Validates a company id coming from the UI and returns it. */
+export async function existingCompany(id: string): Promise<string> {
+  const c = await prisma.company.findUnique({ where: { id }, select: { id: true } })
+  if (!c) throw new AppError('Selected company does not exist')
+  return c.id
+}
+
+/** Department, designation and supervisor must belong to the same company as the employee. */
+export async function assertSameCompany(
+  company: string,
+  refs: { departmentId?: string | null; designationId?: string | null; managerId?: string | null }
+): Promise<void> {
+  const [dep, des, mgr] = await Promise.all([
+    refs.departmentId ? prisma.department.findUnique({ where: { id: refs.departmentId }, select: { companyId: true } }) : null,
+    refs.designationId ? prisma.designation.findUnique({ where: { id: refs.designationId }, select: { companyId: true } }) : null,
+    refs.managerId ? prisma.employee.findUnique({ where: { id: refs.managerId }, select: { companyId: true } }) : null
+  ])
+  if (dep && dep.companyId !== company) throw new AppError('The department belongs to a different company')
+  if (des && des.companyId !== company) throw new AppError('The designation belongs to a different company')
+  if (mgr && mgr.companyId !== company) throw new AppError('The supervisor belongs to a different company')
+}

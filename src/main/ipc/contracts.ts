@@ -4,9 +4,11 @@ import { extname, join } from 'path'
 import { randomUUID } from 'crypto'
 import { z } from 'zod'
 import { filesDir, prisma } from '../db'
-import { contractSchema } from '@shared/schemas'
-import { buildContractHtml, buildFooterHtml } from '../contract/template'
-import { AppError, audit, companyId, handle } from './handler'
+import { contractSchema, separationSchema } from '@shared/schemas'
+import { buildContractHtml } from '../contract/template'
+import { buildSeparationHtml } from '../contract/separation'
+import { buildFooterHtml } from '../contract/common'
+import { AppError, audit, handle } from './handler'
 
 const MIME: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' }
 
@@ -52,15 +54,15 @@ const isoDate = (d: Date) => d.toISOString().slice(0, 10)
 export function registerContracts(): void {
   // Pre-fills the "Generate contract" form from the company and employee records.
   handle<string, unknown>('contracts:defaults', { perm: 'contract.generate' }, async (employeeId) => {
-    const [company, emp] = await Promise.all([
-      prisma.company.findUniqueOrThrow({ where: { id: await companyId() } }),
-      prisma.employee.findUniqueOrThrow({ where: { id: employeeId }, include: { designation: true } })
-    ])
+    const emp = await prisma.employee.findUniqueOrThrow({
+      where: { id: employeeId },
+      include: { designation: true, company: true }
+    })
     return {
       contractDate: isoDate(new Date()),
       startDate: isoDate(emp.dateJoined),
-      signatoryName: company.signatoryName ?? '',
-      signatoryTitle: company.signatoryTitle ?? '',
+      signatoryName: emp.company.signatoryName ?? '',
+      signatoryTitle: emp.company.signatoryTitle ?? '',
       designation: emp.designation?.title ?? null
     }
   })
@@ -68,13 +70,11 @@ export function registerContracts(): void {
   // Loads the records and builds the contract HTML; shared by preview and download so they never differ.
   async function build(input: { employeeId: string; data: unknown }, preview: boolean) {
     const terms = contractSchema.parse(input.data)
-    const [company, emp] = await Promise.all([
-      prisma.company.findUniqueOrThrow({ where: { id: await companyId() } }),
-      prisma.employee.findUniqueOrThrow({
-        where: { id: z.string().parse(input.employeeId) },
-        include: { designation: true, manager: { include: { designation: true } } }
-      })
-    ])
+    const emp = await prisma.employee.findUniqueOrThrow({
+      where: { id: z.string().parse(input.employeeId) },
+      include: { company: true, designation: true, manager: { include: { designation: true } } }
+    })
+    const company = emp.company
     if (!emp.designation) throw new AppError('Assign a designation to this employee before generating a contract')
 
     const html = buildContractHtml(
@@ -103,7 +103,7 @@ export function registerContracts(): void {
     { perm: 'contract.generate' },
     async (input, user) => {
       const { terms, emp, html } = await build(input, false)
-      const pdf = await htmlToPdf(html, buildFooterHtml(emp.fullName))
+      const pdf = await htmlToPdf(html, buildFooterHtml('Employment Agreement', emp.fullName))
 
       const parent = BrowserWindow.getFocusedWindow() ?? undefined
       const options = {
@@ -116,6 +116,70 @@ export function registerContracts(): void {
 
       writeFileSync(res.filePath, pdf)
       await audit(user, 'GENERATE_CONTRACT', 'employee', emp.id, undefined, { monthlySalary: terms.monthlySalary, file: res.filePath })
+      shell.showItemInFolder(res.filePath)
+      return { path: res.filePath }
+    }
+  )
+
+  // ---------------------------------------------------------------- Separation agreement
+  const header = (company: { name: string; address: string | null; phone: string | null; email: string | null; logoPath: string | null }) => ({
+    name: company.name,
+    address: company.address,
+    phone: company.phone,
+    email: company.email,
+    logoDataUri: logoDataUri(company.logoPath)
+  })
+
+  handle<string, unknown>('separation:defaults', { perm: 'contract.generate' }, async (employeeId) => {
+    const emp = await prisma.employee.findUniqueOrThrow({ where: { id: employeeId }, include: { designation: true, company: true } })
+    return {
+      agreementDate: isoDate(new Date()),
+      terminationDate: emp.dateLeft ? isoDate(emp.dateLeft) : null,
+      signatoryName: emp.company.signatoryName ?? '',
+      signatoryTitle: emp.company.signatoryTitle ?? '',
+      designation: emp.designation?.title ?? null,
+      status: emp.status
+    }
+  })
+
+  async function buildSeparation(input: { employeeId: string; data: unknown }, preview: boolean) {
+    const terms = separationSchema.parse(input.data)
+    const emp = await prisma.employee.findUniqueOrThrow({
+      where: { id: z.string().parse(input.employeeId) },
+      include: { company: true, designation: true }
+    })
+    if (emp.status !== 'TERMINATED' && emp.status !== 'RESIGNED') throw new AppError('Terminate the employee before creating a separation agreement')
+    if (!emp.designation) throw new AppError('Assign a designation to this employee before generating the agreement')
+    const html = buildSeparationHtml(
+      { company: header(emp.company), employee: { fullName: emp.fullName, designation: emp.designation.title } },
+      terms,
+      { preview }
+    )
+    return { terms, emp, html }
+  }
+
+  handle<{ employeeId: string; data: unknown }, string>('separation:preview', { perm: 'contract.generate' }, async (input) => {
+    return (await buildSeparation(input, true)).html
+  })
+
+  handle<{ employeeId: string; data: unknown }, { path: string } | null>(
+    'separation:generate',
+    { perm: 'contract.generate' },
+    async (input, user) => {
+      const { terms, emp, html } = await buildSeparation(input, false)
+      const pdf = await htmlToPdf(html, buildFooterHtml('Separation Agreement', emp.fullName))
+
+      const parent = BrowserWindow.getFocusedWindow() ?? undefined
+      const options = {
+        title: 'Save separation agreement',
+        defaultPath: join(app.getPath('documents'), `Separation-Agreement-${slug(emp.employeeCode)}-${slug(emp.fullName)}.pdf`),
+        filters: [{ name: 'PDF document', extensions: ['pdf'] }]
+      }
+      const res = parent ? await dialog.showSaveDialog(parent, options) : await dialog.showSaveDialog(options)
+      if (res.canceled || !res.filePath) return null
+
+      writeFileSync(res.filePath, pdf)
+      await audit(user, 'GENERATE_SEPARATION', 'employee', emp.id, undefined, { severance: terms.severanceAmount, file: res.filePath })
       shell.showItemInFolder(res.filePath)
       return { path: res.filePath }
     }

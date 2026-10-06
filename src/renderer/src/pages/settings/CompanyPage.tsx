@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -14,14 +15,19 @@ import { CheckField, Field } from '@/components/field'
 import { ImagePicker } from '@/components/image-picker'
 import { PageHeader } from '@/components/data-table'
 
+const BLANK = { name: '', registrationNumber: '', panVatNumber: '', address: '', phone: '', email: '', logoPath: '', bankName: '', bankAccountNumber: '', bankBranch: '', currentFiscalYear: '', tagline: '', website: '', signatoryName: '', signatoryTitle: '', isActive: true }
+
 type Company = Record<keyof CompanyInput, string | boolean | null> & { id: string }
 
 export default function CompanyPage() {
   const { can } = useAuth()
   const qc = useQueryClient()
   const toast = useToast()
-  const readOnly = !can('company.update')
-  const { data } = useQuery({ queryKey: ['company'], queryFn: () => api<Company>('company:get') })
+  const navigate = useNavigate()
+  const { id = '' } = useParams()
+  const isNew = id === 'new'
+  const readOnly = !can(isNew ? 'company.create' : 'company.update')
+  const { data } = useQuery({ queryKey: ['company', id], queryFn: () => api<Company>('company:get', id), enabled: !isNew })
   const {
     register,
     control,
@@ -32,16 +38,21 @@ export default function CompanyPage() {
   } = useForm<CompanyInput>({ resolver: zodResolver(companySchema) })
 
   useEffect(() => {
+    if (isNew) reset(BLANK as CompanyInput)
+  }, [isNew, reset])
+
+  useEffect(() => {
     if (!data) return
     const clean = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, v ?? '']))
     reset({ ...clean, isActive: data.isActive as boolean } as CompanyInput)
   }, [data, reset])
 
   const save = useMutation({
-    mutationFn: (v: CompanyInput) => api('company:update', v),
+    mutationFn: (v: CompanyInput) => (isNew ? api('company:create', v) : api('company:update', { id, data: v })),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ['company'] })
-      toast.success('Company settings saved')
+      for (const key of ['company', 'companies', 'shell', 'lookups-org']) void qc.invalidateQueries({ queryKey: [key] })
+      toast.success(isNew ? 'Company created' : 'Company saved')
+      if (isNew) navigate('/companies')
     }
   })
 
@@ -49,7 +60,15 @@ export default function CompanyPage() {
 
   return (
     <>
-      <PageHeader title="Company" subtitle="Company details used on payslips and reports" />
+      <PageHeader
+        title={isNew ? 'Add company' : 'Edit company'}
+        subtitle="Company details used on contracts, payslips and reports"
+        actions={
+          <Button variant="outline" asChild>
+            <Link to="/companies">Back to companies</Link>
+          </Button>
+        }
+      />
       <form onSubmit={onSubmit} noValidate>
         <fieldset disabled={readOnly} className="space-y-4">
           <Card>
@@ -126,8 +145,8 @@ export default function CompanyPage() {
         </fieldset>
         {!readOnly && (
           <div className="mt-4 flex justify-end">
-            <Button type="submit" disabled={save.isPending || !isDirty}>
-              Save changes
+            <Button type="submit" disabled={save.isPending || (!isNew && !isDirty)}>
+              {isNew ? 'Create company' : 'Save changes'}
             </Button>
           </div>
         )}
