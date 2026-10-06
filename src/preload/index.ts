@@ -9,6 +9,7 @@ const CHANNELS = new Set([
   'lookups:organization',
   'employees:list', 'employees:get', 'employees:options', 'employees:create', 'employees:update', 'employees:deactivate',
   'salary-components:list', 'salary-components:create', 'salary-components:update',
+  'salary-structure:get', 'salary-structure:save',
   'users:list', 'users:create', 'users:update', 'roles:list',
   'files:pickImage',
   'app:shell', 'dashboard:summary'

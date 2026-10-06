@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs'
 import { prisma } from './db'
 import { PERMISSIONS, SYSTEM_ROLES } from '@shared/permissions'
+import { seedPayroll } from './seed-payroll'
 
 /** Idempotent: syncs permissions/roles every start, creates first-run data only when missing. */
 export async function seed(): Promise<void> {
@@ -76,4 +77,6 @@ export async function seed(): Promise<void> {
       }
     })
   }
+
+  await seedPayroll()
 }
