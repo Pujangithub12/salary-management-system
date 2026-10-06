@@ -7,6 +7,7 @@ import EmployeesPage from '@/pages/employees/EmployeesPage'
 import DepartmentsPage from '@/pages/organization/DepartmentsPage'
 import DesignationsPage from '@/pages/organization/DesignationsPage'
 import SalaryComponentsPage from '@/pages/salary/SalaryComponentsPage'
+import PayrollPage from '@/pages/payroll/PayrollPage'
 import CompanyPage from '@/pages/settings/CompanyPage'
 import CompaniesPage from '@/pages/settings/CompaniesPage'
 import UsersPage from '@/pages/settings/UsersPage'
@@ -22,6 +23,7 @@ export default function App() {
       <Route element={<AppLayout />}>
         <Route index element={<DashboardPage />} />
         <Route path="employees" element={<EmployeesPage />} />
+        <Route path="payroll" element={<PayrollPage />} />
         <Route path="departments" element={<DepartmentsPage />} />
         <Route path="designations" element={<DesignationsPage />} />
         <Route path="salary-components" element={<SalaryComponentsPage />} />

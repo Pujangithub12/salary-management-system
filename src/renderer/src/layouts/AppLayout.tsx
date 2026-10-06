@@ -31,7 +31,7 @@ const SETTINGS_PERMS = ['company.view', 'department.view', 'designation.view', '
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/employees', label: 'Employees', icon: Users, perms: ['employee.view'] },
-  { label: 'Payroll', icon: Banknote, soon: true },
+  { to: '/payroll', label: 'Payroll', icon: Banknote, perms: ['salary.view'] },
   { label: 'Attendance', icon: Clock, soon: true },
   { label: 'Leave', icon: CalendarCheck, soon: true },
   { label: 'Taxes', icon: Scale, soon: true },
